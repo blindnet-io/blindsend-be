@@ -1,0 +1,43 @@
+<configuration>
+
+    <property name="HOME_DIR" value="."/>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <Pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %green([%thread]) %highlight(%-5level) %yellow(%logger{1}) - %white(%msg%n)
+            </Pattern>
+        </encoder>
+
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+			<evaluator name="org.codehaus.janino.ScriptEvaluator">
+				<expression>return message.startsWith("Accepted connection from");</expression>
+			</evaluator>
+			<OnMismatch>NEUTRAL</OnMismatch>
+			<OnMatch>DENY</OnMatch>
+		</filter>
+    </appender>
+
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>app.log</file>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <Pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %green([%thread]) %highlight(%-5level) %yellow(%logger{1}) - %white(%msg%n)
+            </Pattern>
+        </encoder>
+
+        <filter class="ch.qos.logback.core.filter.EvaluatorFilter">
+			<evaluator name="org.codehaus.janino.ScriptEvaluator">
+				<expression>return message.startsWith("Accepted connection from");</expression>
+			</evaluator>
+			<OnMismatch>NEUTRAL</OnMismatch>
+			<OnMatch>DENY</OnMatch>
+		</filter>
+    </appender>
+
+    <root level="info">
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+</configuration>

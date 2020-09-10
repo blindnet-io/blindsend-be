@@ -1,0 +1,10 @@
+.DS_Store
+.bloop/
+.metals/
+target/
+frontend*
+dist*
+*.log
+metals.sbt
+account.json
+*.conf
