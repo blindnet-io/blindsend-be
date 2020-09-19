@@ -20,7 +20,8 @@ object Assets {
         .fromFile[IO](new File(s"${assetsDir}/index.html"), blocker, None)
         .getOrElseF(NotFound())
 
-    // TODO: this might be dangerous, something like blindsend.xyz/../account.json
+    // TODO: this might be dangerous
+    // check https://wiki.owasp.org/index.php/Path_Traversal
     case GET -> path =>
       StaticFile
         .fromFile[IO](new File(s"${assetsDir}/${path}"), blocker, None)

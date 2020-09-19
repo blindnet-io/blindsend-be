@@ -22,6 +22,7 @@ import org.http4s._
 import org.http4s.circe._
 import org.http4s.client.Client
 import org.http4s.implicits._
+import org.http4s.util.CaseInsensitiveString
 
 case class ServiceAccountCredentials(
   secretKey: String,
@@ -106,7 +107,6 @@ object GoogleCloudStorage {
         credentials <- IO.fromEither(decode[ServiceAccountCredentials](accountDataStr).leftMap(e => new Throwable(e)))
         curTime     <- IO(System.currentTimeMillis() / 1000)
 
-        // TODO: use a dedicated library for JWT
         jwtClaimSet = JWTClaimSet(
           credentials.clientEmail,
           scope,
@@ -144,6 +144,8 @@ object GoogleCloudStorage {
       accessTokenRef <- Ref.of[IO, String](resp.accessToken)
 
       _ <- refreshTokenLoop(accessTokenRef).start
+
+      resumableUploadLocations <- Ref.of[IO, Map[String, String]](Map.empty)
     } yield (new FileStorage {
 
       def saveFile(id: String, file: Stream[IO, Byte]): IO[Unit] =
@@ -164,9 +166,85 @@ object GoogleCloudStorage {
             ),
             body = file
           )
-          status <- httpClient.status(req)
-          _      <- if (status == Status.Ok) IO.unit else IO.raiseError(new Throwable(s"Error while uploading file: Status ${status.code}"))
+          _ <- httpClient
+                .status(req)
+                .flatMap(status =>
+                  if (status == Status.Ok) IO.unit
+                  else IO.raiseError(new Throwable(s"Error while uploading file $id: Status ${status.code}"))
+                )
+                .handleErrorWith(e => IO.raiseError(new Throwable(s"Unexpected error while uploading file $id: ${e.toString}")))
+
         } yield ()
+
+      def initSaveFile(id: String) =
+        for {
+          _ <- IO(logger.info(s"Init save file ${id} to GCS"))
+
+          accessToken <- accessTokenRef.get
+          uri         <- getUri(s"https://storage.googleapis.com/upload/storage/v1/b/${conf.bucketName}/o?uploadType=resumable&name=${id}")
+
+          req = Request[IO](
+            method = Method.POST,
+            uri = uri,
+            headers = Headers.of(Header("Authorization", s"Bearer $accessToken"))
+          )
+
+          location <- httpClient
+                       .run(req)
+                       .use(resp => IO(resp.headers.get(CaseInsensitiveString("Location")).map(_.value)))
+
+          res <- location match {
+                  case Some(loc) => resumableUploadLocations.update(_.updated(id, loc))
+                  case None      => IO.raiseError(new Throwable(s"Error obtaining uri for resumable uploads for file $id"))
+                }
+
+        } yield res
+
+      def saveFilePart(id: String, filePart: Stream[IO, Byte], totalSize: Long, chunkSize: Long, start: Long, end: Long) =
+        for {
+          accessToken <- accessTokenRef.get
+          location    <- resumableUploadLocations.get.map(_.get(id))
+
+          resp <- location match {
+                   case Some(uri) =>
+                     for {
+                       _ <- IO.unit
+                       req = Request[IO](
+                         method = Method.PUT,
+                         uri = Uri.unsafeFromString(uri),
+                         headers = Headers.of(
+                           Header("Authorization", s"Bearer $accessToken"),
+                           Header("Content-Length", chunkSize.toString),
+                           Header("Content-Range", s"bytes $start-$end/$totalSize")
+                         ),
+                         body = filePart
+                       )
+
+                       // TODO: remove, test if chunk upload failed
+                       //  _ <- IO(new scala.util.Random().nextInt(2)).flatMap(x =>
+                       //        if (x % 2 == 0) IO.raiseError(new Throwable("asd"))
+                       //        else IO.unit
+                       //      )
+
+                       // TODO: real errors get swallowed with stack trace printed, e.g.
+                       // java.lang.IllegalStateException: Expected `Content-Length: 3000000` bytes, but only 2097152 were written.
+                       // fiber death related?
+                       // and TimeoutException is thrown after the timeout
+                       resp <- httpClient
+                                .status(req)
+                                .flatMap(status =>
+                                  if (status == Status.Ok || status == Status.PermanentRedirect) IO(PartialSaveRespType.Success)
+                                  else if (status == Status.BadRequest) IO(PartialSaveRespType.WrongParameters)
+                                  else IO.raiseError(new Throwable(s"Error while uploading file part for file $id: Status ${status.code}"))
+                                )
+                                .handleErrorWith(_ => IO(PartialSaveRespType.UnexpectedError))
+                     } yield resp
+
+                   case None =>
+                     IO.raiseError(new Throwable(s"No uri found to resume upload for file id $id"))
+                 }
+
+        } yield resp
 
       def getFile(id: String): IO[Stream[IO, Byte]] =
         for {
