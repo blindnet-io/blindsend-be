@@ -58,8 +58,8 @@ storage = {
 link-repo = {
   type = in-memory
 }
-If you are testing an instance of blindsend on your local machine, specify `http://0.0.0.0:9000` in the `domain` field.
 ```
+If you are testing an instance of blindsend on your local machine, specify `http://0.0.0.0:9000` in the `domain` field.
  2. In the project root run the following command to create `blindsend.jar` file in `target/scala-2.13/` folder
  ```bash
  sbt assembly
