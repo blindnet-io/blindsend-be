@@ -1,9 +1,9 @@
-package io.blindsend.links
+package io.blindsend.app.requestfile.repo
 
 import java.time.LocalDateTime
 
 import cats.effect.IO
-import io.blindsend.model.LinkState
+import io.blindsend.app.requestfile.model.LinkState
 
 trait LinkRepository {
   def getStatus(linkId: String): IO[Int]
@@ -14,13 +14,9 @@ trait LinkRepository {
 
   def storeReceivedRequesterKeys(
     linkId: String,
-    pk1: String,
-    sk1EncNonce: String,
-    sk1Encrypted: String,
-    sk1EkKdfSalt: String,
-    sk1EkKdfOps: Int,
-    sk1EkKdfMemLimit: Int,
-    keyHash: String
+    kKdfSalt: String,
+    kKdfOps: Int,
+    kKdfMemLimit: Int
   ): IO[Unit]
 
   def storeAwaitingFileUpload(linkId: String, uploadId: String): IO[Unit]
@@ -28,7 +24,6 @@ trait LinkRepository {
   def storeAwaitingDownload(
     linkId: String,
     pk2: String,
-    ecdhKeyHash: String,
     streamEncHeader: String,
     fileName: String,
     fileSize: Long
@@ -36,7 +31,7 @@ trait LinkRepository {
 
   def storeFileUploading(linkId: String, fileId: String): IO[Unit]
 
-  def storeFileUploadingSuccess(linkId: String, fileId: String): IO[Unit]
+  def storeFileUploadingSuccess(linkId: String): IO[Unit]
 
-  def storeFileUploadingFailed(linkId: String, fileId: String): IO[Unit]
+  def storeFileUploadingFailed(linkId: String): IO[Unit]
 }

@@ -77,5 +77,18 @@ object FakeStorage {
 
     def deleteFile(id: String): IO[Unit] =
       IO.unit
+
+    def initSaveFile(id: String): IO[Unit] =
+      IO.unit
+
+    def saveFilePart(
+      id: String,
+      filePart: Stream[IO, Byte],
+      totalSize: Long,
+      chunkSize: Long,
+      start: Long,
+      end: Long
+    ): IO[PartialSaveRespType] =
+      IO.raiseError(new Throwable("Not implemented"))
   }
 }

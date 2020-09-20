@@ -1,11 +1,11 @@
-package io.blindsend.links
+package io.blindsend.app.requestfile.repo
 
 import java.time.LocalDateTime
 
 import cats.effect._
 import cats.effect.concurrent._
 import cats.implicits._
-import io.blindsend.model._
+import io.blindsend.app.requestfile.model._
 
 object InMemoryLinkRepository {
 
@@ -15,12 +15,12 @@ object InMemoryLinkRepository {
       state.get.map(s =>
         s.get(linkId)
           .map {
-            case _: LinkCreated           => 1
-            case _: ReceivedRequesterKeys => 2
-            case _: AwaitingFileUpload    => 3
-            case _: FileUploading         => 4
-            case _: FileUploaded          => 5
-            case _: AwaitingDownload      => 6
+            case _: LinkCreated        => 1
+            case _: SessionInitialized => 2
+            case _: AwaitingFileUpload => 3
+            case _: FileUploading      => 4
+            case _: FileUploaded       => 5
+            case _: AwaitingDownload   => 6
           }
           .getOrElse(0)
       )
@@ -33,13 +33,9 @@ object InMemoryLinkRepository {
 
     def storeReceivedRequesterKeys(
       linkId: String,
-      pk1: String,
-      sk1EncNonce: String,
-      sk1Encrypted: String,
-      sk1EkKdfSalt: String,
-      sk1EkKdfOps: Int,
-      sk1EkKdfMemLimit: Int,
-      sk1EkeyHash: String
+      kdfSalt: String,
+      kdfOps: Int,
+      kdfMemLimit: Int
     ): IO[Unit] =
       state.update { s =>
         s.get(linkId)
@@ -47,16 +43,12 @@ object InMemoryLinkRepository {
             case data: LinkCreated =>
               s.updated(
                 linkId,
-                ReceivedRequesterKeys(
+                SessionInitialized(
                   data.id,
                   data.dateTime,
-                  pk1,
-                  sk1EncNonce,
-                  sk1Encrypted,
-                  sk1EkKdfSalt,
-                  sk1EkKdfOps,
-                  sk1EkKdfMemLimit,
-                  sk1EkeyHash
+                  kdfSalt,
+                  kdfOps,
+                  kdfMemLimit
                 )
               )
           }
@@ -75,19 +67,15 @@ object InMemoryLinkRepository {
                 linkId,
                 data.copy(uploadId = uploadId)
               )
-            case data: ReceivedRequesterKeys =>
+            case data: SessionInitialized =>
               s.updated(
                 linkId,
                 AwaitingFileUpload(
                   data.id,
                   data.dateTime,
-                  data.pk1,
-                  data.sk1EncNonce,
-                  data.sk1Encrypted,
-                  data.sk1EkKdfSalt,
-                  data.sk1EkKdfOps,
-                  data.sk1EkKdfMemLimit,
-                  data.sk1EkeyHash,
+                  data.kdfSalt,
+                  data.kdfOps,
+                  data.kdfMemLimit,
                   uploadId
                 )
               )
@@ -97,13 +85,9 @@ object InMemoryLinkRepository {
                 AwaitingFileUpload(
                   data.id,
                   data.dateTime,
-                  data.pk1,
-                  data.sk1EncNonce,
-                  data.sk1Encrypted,
-                  data.sk1EkKdfSalt,
-                  data.sk1EkKdfOps,
-                  data.sk1EkKdfMemLimit,
-                  data.sk1EkeyHash,
+                  data.kdfSalt,
+                  data.kdfOps,
+                  data.kdfMemLimit,
                   uploadId
                 )
               )
@@ -113,13 +97,9 @@ object InMemoryLinkRepository {
                 AwaitingFileUpload(
                   data.id,
                   data.dateTime,
-                  data.pk1,
-                  data.sk1EncNonce,
-                  data.sk1Encrypted,
-                  data.sk1EkKdfSalt,
-                  data.sk1EkKdfOps,
-                  data.sk1EkKdfMemLimit,
-                  data.sk1EkeyHash,
+                  data.kdfSalt,
+                  data.kdfOps,
+                  data.kdfMemLimit,
                   uploadId
                 )
               )
@@ -137,13 +117,9 @@ object InMemoryLinkRepository {
                 FileUploading(
                   data.id,
                   data.dateTime,
-                  data.pk1,
-                  data.sk1EncNonce,
-                  data.sk1Encrypted,
-                  data.sk1EkKdfSalt,
-                  data.sk1EkKdfOps,
-                  data.sk1EkKdfMemLimit,
-                  data.sk1EkeyHash,
+                  data.kdfSalt,
+                  data.kdfOps,
+                  data.kdfMemLimit,
                   fileId
                 )
               )
@@ -151,30 +127,26 @@ object InMemoryLinkRepository {
           .getOrElse(s)
       }.handleError(_ => ())
 
-    def storeFileUploadingFailed(linkId: String, fileId: String): IO[Unit] =
+    def storeFileUploadingFailed(linkId: String): IO[Unit] =
       state.update { s =>
         s.get(linkId)
           .map {
             case data: FileUploading =>
               s.updated(
                 linkId,
-                ReceivedRequesterKeys(
+                SessionInitialized(
                   linkId,
                   data.dateTime,
-                  data.pk1,
-                  data.sk1EncNonce,
-                  data.sk1Encrypted,
-                  data.sk1EkKdfSalt,
-                  data.sk1EkKdfOps,
-                  data.sk1EkKdfMemLimit,
-                  data.sk1EkeyHash
+                  data.kdfSalt,
+                  data.kdfOps,
+                  data.kdfMemLimit
                 )
               )
           }
           .getOrElse(s)
       }.handleError(_ => ())
 
-    def storeFileUploadingSuccess(linkId: String, fileId: String): IO[Unit] =
+    def storeFileUploadingSuccess(linkId: String): IO[Unit] =
       state.update { s =>
         s.get(linkId)
           .map {
@@ -184,13 +156,9 @@ object InMemoryLinkRepository {
                 FileUploaded(
                   data.id,
                   data.dateTime,
-                  data.pk1,
-                  data.sk1EncNonce,
-                  data.sk1Encrypted,
-                  data.sk1EkKdfSalt,
-                  data.sk1EkKdfOps,
-                  data.sk1EkKdfMemLimit,
-                  data.sk1EkeyHash,
+                  data.kdfSalt,
+                  data.kdfOps,
+                  data.kdfMemLimit,
                   data.fileId
                 )
               )
@@ -201,7 +169,6 @@ object InMemoryLinkRepository {
     def storeAwaitingDownload(
       linkId: String,
       pk2: String,
-      ecdhKeyHash: String,
       streamEncHeader: String,
       fileName: String,
       fileSize: Long
@@ -215,15 +182,10 @@ object InMemoryLinkRepository {
                 AwaitingDownload(
                   data.id,
                   data.dateTime,
-                  data.pk1,
-                  data.sk1EncNonce,
-                  data.sk1Encrypted,
-                  data.sk1EkKdfSalt,
-                  data.sk1EkKdfOps,
-                  data.sk1EkKdfMemLimit,
-                  data.sk1EkeyHash,
+                  data.kdfSalt,
+                  data.kdfOps,
+                  data.kdfMemLimit,
                   pk2,
-                  ecdhKeyHash,
                   streamEncHeader,
                   data.fileId,
                   fileName,

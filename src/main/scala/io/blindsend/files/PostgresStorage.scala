@@ -57,6 +57,19 @@ object PostgresStorage {
             )
             .transact(xa)
         }
+
+      def initSaveFile(id: String): IO[Unit] =
+        IO.raiseError(new Throwable("Not implemented"))
+
+      def saveFilePart(
+        id: String,
+        filePart: Stream[IO, Byte],
+        totalSize: Long,
+        chunkSize: Long,
+        start: Long,
+        end: Long
+      ): IO[PartialSaveRespType] =
+        IO.raiseError(new Throwable("Not implemented"))
     }
   }
 }

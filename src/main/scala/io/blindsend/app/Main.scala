@@ -16,8 +16,6 @@ import io.blindsend.config.{
   InMemory => InMemoryLinkRepoConf
 }
 import io.blindsend.files._
-import io.blindsend.links._
-import io.blindsend.model._
 import org.http4s.client.blaze._
 import org.http4s.implicits._
 import org.http4s.server.Router
@@ -27,12 +25,17 @@ import pureconfig._
 import pureconfig.generic.FieldCoproductHint
 import pureconfig.generic.auto._
 import io.blindsend.config.PostgresLargeObjects
+import io.blindsend.app.requestfile.model.{ LinkState => ReqLinkState }
+import io.blindsend.app.sendfile.model.{ LinkState => SendLinkState }
+import io.blindsend.app.requestfile.FileRequest
+import io.blindsend.app.sendfile.FileSend
 
 object Main extends IOApp {
 
   val logger: org.log4s.Logger = org.log4s.getLogger
 
-  implicit val storageConfHint  = new FieldCoproductHint[StorageConf]("type")
+  implicit val storageConfHint = new FieldCoproductHint[StorageConf]("type")
+
   implicit val linkRepoConfHint = new FieldCoproductHint[LinkRepoConf]("type")
 
   val server =
@@ -59,14 +62,18 @@ object Main extends IOApp {
                      .withMaxTotalConnections(100)
                      .resource
 
-      linkRepo <- conf.linkRepo match {
-                   case InMemoryLinkRepoConf =>
-                     val inMem = for {
-                       state <- cats.effect.concurrent.Ref.of[IO, Map[String, LinkState]](Map.empty)
-                     } yield InMemoryLinkRepository(state)
+      (reqLinkRepo, sendLinkRepo) <- conf.linkRepo match {
+                                      case InMemoryLinkRepoConf =>
+                                        val inMem = for {
+                                          reqFileState  <- cats.effect.concurrent.Ref.of[IO, Map[String, ReqLinkState]](Map.empty)
+                                          sendFileState <- cats.effect.concurrent.Ref.of[IO, Map[String, SendLinkState]](Map.empty)
+                                        } yield (
+                                          io.blindsend.app.requestfile.repo.InMemoryLinkRepository(reqFileState),
+                                          io.blindsend.app.sendfile.repo.InMemoryLinkRepository(sendFileState)
+                                        )
 
-                     Resource.liftF(inMem)
-                 }
+                                        Resource.liftF(inMem)
+                                    }
 
       fileStorage <- conf.storage match {
                       case FakeStorageConf =>
@@ -77,16 +84,17 @@ object Main extends IOApp {
                         Resource.pure[IO, FileStorage](PostgresStorage(blocker, conf))
                     }
 
-      filesBeingUploaded <- Resource.liftF(cats.effect.concurrent.Ref.of[IO, Set[String]](Set.empty))
-      apiService         = Api.service(linkRepo, fileStorage, filesBeingUploaded, Crypto.rng, conf)
-      apiRoutes = Router(
-        "api" -> (
-          if (conf.cors) CORS(apiService)
-          else apiService
-        )
+      fileRequestService <- Resource.liftF(FileRequest.service(reqLinkRepo, fileStorage, Crypto.rng, conf))
+      fileSendService    <- Resource.liftF(FileSend.service(sendLinkRepo, fileStorage, Crypto.rng, conf))
+      routes = Router(
+        "/api/request" -> (
+          if (conf.cors) CORS(fileRequestService) else fileRequestService
+        ),
+        "/api/send" -> (
+          if (conf.cors) CORS(fileSendService) else fileSendService
+        ),
+        "/" -> Assets.service(blocker, conf.assetsDir)
       )
-      assetsRoutes = Assets.service(blocker, conf.assetsDir)
-      routes       = (apiRoutes <+> assetsRoutes)
 
       // TODO: listen on eventDispatcher, handle on workStealingTP
       _ <- BlazeServerBuilder[IO](workStealingTP)

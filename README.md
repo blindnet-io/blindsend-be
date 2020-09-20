@@ -1,12 +1,12 @@
 # Blindsend back-end
 
-This project is a back-end for blindsend, an open source tool for private, end-to-end encrypted file exchange between two parties. Blindsend is still under development by [blindnet.io](https://blindnet.io/).
+This project is a back-end for [blindsend](https://github.com/blindnet-io/blindsend), an open source tool for private, end-to-end encrypted file exchange between two parties.
 
 Blindsend back-end provides a REST API for managing file exchange workflow. This open source version uses PostgreSQL for storing encrypted files. 
 
 Blindsend back-end is intended for two usage scenarios:
-1. To be deployed together with [blindsend front-end](https://github.com/blindnet-io/blindsend-fe), and serve as SaaS application
-2. To be deployed as a private file sharing API and used in external software projects for private file sharing
+1. To be deployed together with [blindsend front-end](https://github.com/blindnet-io/blindsend-fe), and serve as a SaaS application. A demo is avalable [here](https://blindsend.xyz)
+2. To be deployed as a private file exchange API and used in external software projects for private file exchange. A [Java library](https://github.com/blindnet-io/blindsend-examples-java) that relies on blindsend API for private file exchange is currently under development
 
 ## Installation instructions
 
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS FilesLO (
  To run blindsend back-end:
  1. Create a configuration file `app.conf` in the folder of your choice
  ```conf
-domain = "http://0.0.0.0:9000"
+domain = <your_domain>
 assets-dir = dist
 cors = true
 max-file-size = 150994944
@@ -58,6 +58,7 @@ storage = {
 link-repo = {
   type = in-memory
 }
+If you are testing an instance of blindsend on your local machine, specify `http://0.0.0.0:9000` in the `domain` field.
 ```
  2. In the project root run the following command to create `blindsend.jar` file in `target/scala-2.13/` folder
  ```bash
@@ -71,8 +72,11 @@ link-repo = {
 
  ## Front-end integration
 
- To include a front-end client for your blindsend back-end, follow the instructions in the [blindsend front-end](https://github.com/blindnet-io/blindsend-fe) to create a `dist` folder, and put it together with your `blindsend.jar` and `app.conf` files before running blindsend back-end. The front-end will be reachable at `{domain}` (e.g., http://0.0.0.0:9000).
+ To include a front-end client for your blindsend back-end, follow the instructions in the [blindsend front-end](https://github.com/blindnet-io/blindsend-fe) to create a `dist` folder, and put it together with your `blindsend.jar` and `app.conf` files before running blindsend back-end. The front-end will be reachable at `{domain}`.
 
  ## Security
  
- It is strongly recommended that your blindsend back-end instance is running on https. Otherwise, it should not be used for purposes other than testing.
+ It is strongly recommended that your blindsend back-end instance is running on https. Otherwise, it should never be used for purposes other than testing.
+
+ ## Current status
+This project has been started by [blindnet.io](https://blindnet.io/) and is currently under development.
