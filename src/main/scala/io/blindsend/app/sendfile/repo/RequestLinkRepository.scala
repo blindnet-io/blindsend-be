@@ -13,8 +13,10 @@ trait LinkRepository {
     linkId: String,
     dateTime: LocalDateTime,
     fileId: String,
-    fileSize: Long,
-    fileName: String,
+    size: Long,
+    encFileMetadata: String,
+    fileEncNonce: String,
+    metadataEncNonce: String,
     kdfSalt: String,
     kdfOps: Int,
     kdfMemLimit: Int

@@ -8,15 +8,25 @@ object RespUploadParams {
 }
 
 case class ReqInitUpload(
-  fileSize: Long,
-  fileName: String,
+  size: Long,
+  encFileMetadata: String,
+  fileEncNonce: String,
+  metadataEncNonce: String,
   kdfSalt: String,
   kdfOps: Int,
   kdfMemLimit: Int
 )
 object ReqInitUpload {
   implicit val dec: Decoder[ReqInitUpload] =
-    Decoder.forProduct5("file_size", "file_name", "kdf_salt", "kdf_ops", "kdf_mem_limit")(ReqInitUpload.apply)
+    Decoder.forProduct7(
+      "size",
+      "enc_file_meta",
+      "file_enc_nonce",
+      "meta_enc_nonce",
+      "kdf_salt",
+      "kdf_ops",
+      "kdf_mem_limit"
+    )(ReqInitUpload.apply)
 }
 
 case class RespInitUpload(linkId: String)
@@ -37,12 +47,26 @@ object ReqGetFileMetadata {
 
 case class RespGetFileMetadata(
   linkId: String,
-  fileName: String,
-  fileSize: Long
+  size: Long,
+  encFileMetadata: String,
+  fileEncNonce: String,
+  metadataEncNonce: String,
+  kdfSalt: String,
+  kdfOps: Int,
+  kdfMemLimit: Int
 )
 object RespGetFileMetadata {
   implicit val enc: Encoder[RespGetFileMetadata] =
-    Encoder.forProduct3("link_id", "file_name", "file_size")(r => (r.linkId, r.fileName, r.fileSize))
+    Encoder.forProduct8(
+      "link_id",
+      "size",
+      "enc_file_meta",
+      "file_enc_nonce",
+      "meta_enc_nonce",
+      "kdf_salt",
+      "kdf_ops",
+      "kdf_mem_limit"
+    )(r => (r.linkId, r.size, r.encFileMetadata, r.fileEncNonce, r.metadataEncNonce, r.kdfSalt, r.kdfOps, r.kdfMemLimit))
 }
 
 case class ReqGetFile(linkId: String)

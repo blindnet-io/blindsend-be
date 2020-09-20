@@ -134,7 +134,7 @@ object FileRequest {
                              kdfOps,
                              kdfMemLimit
                            ) *>
-                           Ok(RespInitSession(s"${conf.domain}/${linkId}").asJson)
+                           Ok(RespInitSession(s"${conf.domain}/request/${linkId}").asJson)
                        case _ =>
                          IO(logger.warn(s"Bad state for ${linkId}")) *> BadRequest("Bad link state")
                      }

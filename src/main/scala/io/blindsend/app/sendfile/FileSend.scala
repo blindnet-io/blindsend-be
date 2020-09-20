@@ -51,7 +51,7 @@ object FileSend {
         for {
           _ <- IO(logger.info("Received init-session request"))
 
-          ReqInitUpload(fileSize, fileName, salt, ops, memLimit) <- req.as[ReqInitUpload]
+          r <- req.as[ReqInitUpload]
 
           linkId   <- Crypto.randomHash(rng)
           dateTime <- IO(LocalDateTime.now())
@@ -59,11 +59,23 @@ object FileSend {
 
           _ <- IO(logger.info(s"Created link id ${linkId}, file id ${fileId}"))
 
-          _ <- linkRepo.storeUploadInitialized(linkId, dateTime, fileId, fileSize, fileName, salt, ops, memLimit)
+          _ <- linkRepo.storeUploadInitialized(
+                linkId,
+                dateTime,
+                fileId,
+                r.size,
+                r.encFileMetadata,
+                r.fileEncNonce,
+                r.metadataEncNonce,
+                r.kdfSalt,
+                r.kdfOps,
+                r.kdfMemLimit
+              )
 
           _ <- (IO.sleep(5 seconds) *> filesSetToUpload.update(_ - linkId)).start
 
-          response <- if (fileSize > conf.maxFileSize)
+          // TODO: this is encrypted size, transform to real size
+          response <- if (r.size > conf.maxFileSize)
                        IO(
                          logger.warn(
                            s"File content length ${req.contentLength.get} larger than maximum allowed " +
@@ -72,7 +84,7 @@ object FileSend {
                        ) *> BadRequest("File size too large")
                      else {
                        val res = for {
-                         _    <- filesUploadState.update(_ + (linkId -> PartialUploadState(fileId, fileSize, 0L, 0)))
+                         _    <- filesUploadState.update(_ + (linkId -> PartialUploadState(fileId, r.size, 0L, 0)))
                          _    <- (IO.sleep(30 minutes) *> filesUploadState.update(_.removed(linkId))).start
                          _    <- fileStorage.initSaveFile(fileId)
                          resp <- Ok(RespInitUpload(linkId).asJson)
@@ -98,7 +110,7 @@ object FileSend {
                          if (req.contentLength.exists(len => len + uploadedSize > totalSize) || uploadedSize + chunkSize > totalSize)
                            IO(
                              logger.warn(
-                               s"File content length larger than maximum allowed size ${conf.maxFileSize} for link ${linkId}. Aborting file upload."
+                               s"File content length larger than advertised size ${totalSize} for link ${linkId}. Aborting file upload."
                              )
                            ) *> BadRequest("File size too large")
                          else {
@@ -130,7 +142,7 @@ object FileSend {
                                                                _  <- linkRepo.storeFileUploadingSuccess(linkId)
                                                                _  <- filesSetToUpload.update(_ - linkId)
                                                                _  <- filesUploadState.update(_.removed(linkId))
-                                                               ok <- Ok(s"${conf.domain}/${linkId}")
+                                                               ok <- Ok(s"${conf.domain}/send/${linkId}")
                                                              } yield ok
                                                            else
                                                              Ok("")
@@ -170,9 +182,21 @@ object FileSend {
 
           response <- data match {
                        case Some(data: FileUploaded) =>
-                         Ok(RespGetFileMetadata(linkId, data.fileName, data.fileSize).asJson)
+                         Ok(
+                           RespGetFileMetadata(
+                             linkId,
+                             data.size,
+                             data.encFileMetadata,
+                             data.fileEncNonce,
+                             data.metadataEncNonce,
+                             data.kdfSalt,
+                             data.kdfOps,
+                             data.kdfMemLimit
+                           ).asJson
+                         )
 
-                       case _ => IO(logger.warn(s"Bad state for ${linkId}")) *> BadRequest("Bad link state")
+                       case Some(_) => IO(logger.warn(s"Bad state for ${linkId}")) *> BadRequest("Bad link state")
+                       case None    => IO(logger.warn(s"Requesting non-existend link id ${linkId}")) *> NotFound("")
                      }
 
         } yield response
