@@ -1,6 +1,6 @@
 # Blindsend server
 
-This project is a server for [blindsend](https://github.com/blindnet-io/blindsend), an open source tool for private, end-to-end encrypted file exchange between two parties. It provides a REST API for managing file exchange workflow. 
+This project is a server for [blindsend](https://github.com/blindnet-io/blindsend), an open source tool for private, end-to-end encrypted file exchange between two parties. It provides a REST API for managing file exchange workflow.
 
 Blindsend server is intended for two usage scenarios:
 1. To be deployed together with [blindsend web UI](https://github.com/blindnet-io/blindsend-fe), and serve as a SaaS application. A demo is avalable [here](https://blindsend.xyz)
@@ -100,6 +100,8 @@ This will run the API on `http://0.0.0.0:9000/api`.
 
 To include a web client for your blindsend server, follow the instructions in the [blindsend web UI project](https://github.com/blindnet-io/blindsend-fe) to create a `dist` folder, and put it together with your `blindsend.jar` and `app.conf` files (and `account.json` if using Google Cloud Storage) before running the server.
 
+Depending on which file storage option you chose, additional configuration might be needed. With Google Cloud Storage, to avoid loading whole files into memory, by default the uploaded files are divided into chunks. However, if you plan to integrate the web client and use PostgreSQL for file storage, make sure to set `uploadChunkSize` in `globals.ts` file in the web UI project to have the same value as `max-file-size` configuration attribute in the `app.conf` file. This means that entire files will be loaded into memory and encrypted on the web client side. Watch out for the browsers not handling well a lot of data in memory, so `max-file-size` shouldn't be more than 100-200 Mb.
+
 ## Security
 
 It is strongly recommended that your blindsend server instance is running on https. Otherwise, it should never be used for purposes other than testing.
@@ -110,7 +112,9 @@ Blindsend server acts merely as a proxy for file exchange, encryption/decryption
 
 Currently, file metadata is stored in-memory. So after the server is restarted, file metadata and corresponding link ids are deleted. We are currently working to support PostreSQL for file metadata storage.  
 
-File retention period is currently not handled and will be supported in the future. Files therefore must be deleted manually.   
+File retention period is currently not handled and will be supported in the future. Files therefore must be deleted manually.  
+
+Chunked file upload works only with Google Cloud Storage. 
 
 ## Dependencies
 
@@ -122,7 +126,7 @@ File retention period is currently not handled and will be supported in the futu
 We are currently working to provide:
 - File metadata storage in PostgreSQL
 - File retention mechanism
-- ... and other features and improvements
+- ... other features and improvements
 
 ## Current status
 This project has been started by [blindnet.io](https://blindnet.io/) and is currently under development.

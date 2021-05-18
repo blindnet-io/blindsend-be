@@ -18,13 +18,28 @@ object InMemoryLinkRepository {
       linkId: String,
       dateTime: LocalDateTime,
       fileId: String,
-      fileSize: Long,
-      fileName: String,
+      size: Long,
+      encFileMetadata: String,
+      fileEncNonce: String,
+      metadataEncNonce: String,
       kdfSalt: String,
       kdfOps: Int,
       kdfMemLimit: Int
     ): IO[Unit] =
-      state.update(_ + (linkId -> FileUploadInitialized(linkId, dateTime, fileId, fileSize, fileName, kdfSalt, kdfOps, kdfMemLimit)))
+      state.update(
+        _ + (linkId -> FileUploadInitialized(
+          linkId,
+          dateTime,
+          fileId,
+          size,
+          encFileMetadata,
+          fileEncNonce,
+          metadataEncNonce,
+          kdfSalt,
+          kdfOps,
+          kdfMemLimit
+        ))
+      )
 
     def storeFileUploadingSuccess(linkId: String): IO[Unit] =
       state.update { s =>
@@ -37,8 +52,10 @@ object InMemoryLinkRepository {
                   data.id,
                   data.dateTime,
                   data.fileId,
-                  data.fileSize,
-                  data.fileName,
+                  data.size,
+                  data.encFileMetadata,
+                  data.fileEncNonce,
+                  data.metadataEncNonce,
                   data.kdfSalt,
                   data.kdfOps,
                   data.kdfMemLimit

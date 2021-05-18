@@ -10,12 +10,20 @@ import org.http4s.dsl.io._
 object Assets {
 
   // TODO: this should be done by nginx/cdn
+  // TODO: redirect to home for invalid path
   def service(
     blocker: Blocker,
     assetsDir: String
   )(implicit cs: ContextShift[IO]): HttpRoutes[IO] = HttpRoutes.of[IO] {
 
-    case GET -> Root | GET -> Root / _ =>
+    case GET -> Root =>
+      IO(
+        Response[IO]()
+          .withStatus(Status.Found)
+          .withHeaders(org.http4s.headers.Location(Uri.uri("/send")))
+      )
+
+    case GET -> Root / "send" | GET -> Root / "request" | GET -> Root / "send" / _ | GET -> Root / "request" / _ =>
       StaticFile
         .fromFile[IO](new File(s"${assetsDir}/index.html"), blocker, None)
         .getOrElseF(NotFound())

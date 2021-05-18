@@ -29,6 +29,7 @@ import io.blindsend.app.requestfile.model.{ LinkState => ReqLinkState }
 import io.blindsend.app.sendfile.model.{ LinkState => SendLinkState }
 import io.blindsend.app.requestfile.FileRequest
 import io.blindsend.app.sendfile.FileSend
+import cats.effect.concurrent.Ref
 
 object Main extends IOApp {
 
@@ -65,8 +66,8 @@ object Main extends IOApp {
       (reqLinkRepo, sendLinkRepo) <- conf.linkRepo match {
                                       case InMemoryLinkRepoConf =>
                                         val inMem = for {
-                                          reqFileState  <- cats.effect.concurrent.Ref.of[IO, Map[String, ReqLinkState]](Map.empty)
-                                          sendFileState <- cats.effect.concurrent.Ref.of[IO, Map[String, SendLinkState]](Map.empty)
+                                          reqFileState  <- Ref.of[IO, Map[String, ReqLinkState]](Map.empty)
+                                          sendFileState <- Ref.of[IO, Map[String, SendLinkState]](Map.empty)
                                         } yield (
                                           io.blindsend.app.requestfile.repo.InMemoryLinkRepository(reqFileState),
                                           io.blindsend.app.sendfile.repo.InMemoryLinkRepository(sendFileState)

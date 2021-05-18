@@ -59,7 +59,7 @@ object PostgresStorage {
         }
 
       def initSaveFile(id: String): IO[Unit] =
-        IO.raiseError(new Throwable("Not implemented"))
+        IO.unit
 
       def saveFilePart(
         id: String,
@@ -69,7 +69,7 @@ object PostgresStorage {
         start: Long,
         end: Long
       ): IO[PartialSaveRespType] =
-        IO.raiseError(new Throwable("Not implemented"))
+        saveFile(id, filePart).as(PartialSaveRespType.Success)
     }
   }
 }
